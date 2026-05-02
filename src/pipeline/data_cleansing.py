@@ -23,7 +23,7 @@ def format_features(features):
 # Friendly formatting to be used for AI. Like a full description of what the product is.
 def preprocess(item):
 
-    asin = item.get('asin', '' ) # The Amazon product ID.
+    asin = item.get('parent_asin', '' ) # The Amazon product ID.
     
     title = clean_html(item.get('title', ''))
 
