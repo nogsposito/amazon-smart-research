@@ -5,7 +5,7 @@ import os
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-from pipeline.search import search_disks
+from src.pipeline.search import search_disks
 
 st.set_page_config(page_title='AI Vynil and CD Amazon Search', page_icon = '🎵')
 
