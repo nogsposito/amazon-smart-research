@@ -8,19 +8,27 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 db_path = os.path.join(project_root, "chroma_db")
 
 # Connects to database
-client = chromadb.PersistentClient(path=db_path)
+def get_db_coolection():
 
-# Takes items in the database collection
-try:
-    collection = client.get_collection(name="amazon_vinyls")
-    total_items = collection.count()
-    print(f'Collection found: {total_items} items')
-except ValueError:
-    print('Collection not found')
-    exit()
+    client = chromadb.PersistentClient(path=db_path)
+
+    # Takes items in the database collection
+    try:
+        collection = client.get_collection(name="amazon_vinyls")
+        total_items = collection.count()
+        print(f'Collection found: {total_items} items')
+        return collection
+    except ValueError:
+        print('Collection not found')
+        return None
 
 # Search for the most similar items in the database collection
 def search_disks(query, top_k = 5):
+
+    collection = get_db_coolection()
+
+    if not collection:
+        return []
 
     results = collection.query(
         query_texts = [query], n_results = top_k
@@ -30,13 +38,21 @@ def search_disks(query, top_k = 5):
     metadata = results['metadatas'][0]
     distance = results['distances'][0]
 
+    result_list = []
+
     for i in range (len(ids)):
 
-        title = metadata[i]['title']
-        asin = ids[i]
+        record = {
+            'ASIN': ids[i],
+            'Title': metadata[i]['title'],
+            'Distance': round(distance[i], 4)
+        }
+        result_list.append(record)
 
-        print(f"NUMBER {i+1}: ASIN: {asin}, Title: {title}, Distance: {distance[i]}")
+    return result_list
 
 if __name__ == '__main__':
     my_query = 'elegant jazz night'
-    search_disks(my_query, top_k = 3)
+    results = search_disks(my_query, top_k = 3)
+    for res in results:
+        print(f"NUMBER {results.index(res)+1}: ASIN: {res['ASIN']}, Title: {res['Title']}, Distance: {res['Distance']}")
