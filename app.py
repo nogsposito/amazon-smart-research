@@ -3,6 +3,8 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 import os
 
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 from pipeline.search import search_disks
 
 st.set_page_config(page_title='AI Vynil and CD Amazon Search', page_icon = '🎵')
