@@ -2,36 +2,40 @@
 
 import os
 import chromadb
+from sentence_transformers import SentenceTransformer
 
 script_path = os.path.abspath(__file__)
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 db_path = os.path.join(project_root, "chroma_db")
 
+model = SentenceTransformer('all-mpnet-base-v2')
+
 # Connects to database
-def get_db_coolection():
+def get_db_collection():
 
     client = chromadb.PersistentClient(path=db_path)
 
     # Takes items in the database collection
-    try:
-        collection = client.get_collection(name="amazon_products")
-        total_items = collection.count()
-        print(f'Collection found: {total_items} items')
-        return collection
-    except ValueError:
-        print('Collection not found')
-        return None
+    client = chromadb.PersistentClient(path="./chroma_db")
+    return client.get_collection(name="amazon_products")
 
 # Search for the most similar items in the database collection
 def search_disks(query, top_k = 5):
 
-    collection = get_db_coolection()
+    try:
+        collection = get_db_collection()
+    except Exception as e:
+        print(f"Error to connect: {e}")
+        return []
 
     if not collection:
         return []
+    
+    query_embedding = model.encode([query])
 
     results = collection.query(
-        query_texts = [query], n_results = top_k
+        query_embeddings=query_embedding.tolist(), 
+        n_results=top_k
     )
 
     ids = results['ids'][0]
@@ -52,7 +56,10 @@ def search_disks(query, top_k = 5):
     return result_list
 
 if __name__ == '__main__':
+    
     my_query = 'elegant jazz night'
+
     results = search_disks(my_query, top_k = 3)
+
     for res in results:
         print(f"NUMBER {results.index(res)+1}: ASIN: {res['ASIN']}, Title: {res['Title']}, Distance: {res['Distance']}")
