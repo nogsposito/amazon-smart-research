@@ -12,7 +12,7 @@ DATA_PATH = os.path.join(project_root, "data", "meta_CDs_and_Vinyl.jsonl.gz")
 
 # Fast and efficient AI model for generating embeddings.
 # Every text is converted to list of 384 numbers.
-model = SentenceTransformer('all-MiniLM-L6-v2')
+model = SentenceTransformer('all-mpnet-base-v2')
 
 # Storing in local databse
 client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_db"))

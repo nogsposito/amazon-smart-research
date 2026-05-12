@@ -28,19 +28,42 @@ def preprocess(item):
     title = clean_html(item.get('title', ''))
 
     # Treating description, which could be a list or a text
-    description_raw = item.get('description', '')
-    if isinstance(description_raw, list):
-        description_raw = ' '.join(description_raw)
-    
-    description = clean_html(description_raw)
-    features = format_features(item.get('features', []))
+    raw_desc = item.get('description', [])
+    if isinstance(raw_desc, list):
+        raw_desc = " ".join(raw_desc)
+    description = clean_html(raw_desc)
 
-    combined_content = f"Product: {title}. About: {description}. Details: {features}"
+    categories = item.get('categories', [])
+    if isinstance(categories, list):
+        # Removemos 'CDs & Vinyl' se estiver presente, pois é redundante para a busca
+        categories = [c for c in categories if c != 'CDs & Vinyl']
+        categories_str = ", ".join(categories)
+    else:
+        categories_str = str(categories)
+    
+    features = item.get('features', [])
+    if isinstance(features, list):
+        features_str = ". ".join([clean_html(f) for f in features])
+    else:
+        features_str = clean_html(str(features))
+    
+    content_parts = []
+
+    if title:
+        content_parts.append(f"Title: {title}")
+    if categories_str:
+        content_parts.append(f"Genres/Categories: {categories_str}")
+    if features_str:
+        content_parts.append(f"Features: {features_str}")
+    if description:
+        content_parts.append(f"Description: {description}")
+    
+    content = '. '.join(content_parts)
 
     return {
         "asin": asin,
         "title": title,
-        "content": combined_content
+        "content": content
     }
 
 if __name__ == '__main__':
