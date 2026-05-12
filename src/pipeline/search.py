@@ -14,7 +14,7 @@ def get_db_coolection():
 
     # Takes items in the database collection
     try:
-        collection = client.get_collection(name="amazon_vinyls")
+        collection = client.get_collection(name="amazon_products")
         total_items = collection.count()
         print(f'Collection found: {total_items} items')
         return collection

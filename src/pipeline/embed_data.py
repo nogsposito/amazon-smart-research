@@ -4,62 +4,83 @@ from sentence_transformers import SentenceTransformer
 from src.pipeline.data_cleansing import preprocess
 import gzip
 import json
+import polars as pl
+from tqdm import tqdm
 
 script_path = os.path.abspath(__file__)
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 
-DATA_PATH = os.path.join(project_root, "data", "meta_CDs_and_Vinyl.jsonl.gz")
+PARQUET_PATH = os.path.join(project_root, 'data', 'amazon_catalog.parquet')
+DB_PATH = os.path.join(project_root, 'data', 'chroma_db')
 
-# Fast and efficient AI model for generating embeddings.
-# Every text is converted to list of 384 numbers.
-model = SentenceTransformer('all-mpnet-base-v2')
+def run_batch_indexing(batch_size = 256):
 
-# Storing in local databse
-client = chromadb.PersistentClient(path=os.path.join(project_root, "chroma_db"))
-collection = client.get_or_create_collection(name="amazon_vinyls")
-
-def run_indexing(limit = 100):
-
-    if not os.path.exists(DATA_PATH):
-        print(f"Data file not found")
+    if not os.path.exists(PARQUET_PATH):
+        print(f"Parquet file not found at {PARQUET_PATH}. Please ensure the file exists.")
+        print('data_ingestion should be run before')
         return
 
-    documents = []
-    metadatas = []
-    ids = []
+    # Fast and efficient AI model for generating embeddings.
+    # Every text is converted to list of 384 numbers.
+    print('Initializing AI model for embeddings...')
+    model = SentenceTransformer('all-mpnet-base-v2')
 
-    seen_asins = set()
+    print('Connecting to ChromaDB...')
+    client = chromadb.PersistentClient(path=DB_PATH)
+    collection_name = 'amazon_products'
 
-    with gzip.open(DATA_PATH, 'rt', encoding='utf-8') as f:
-        for i, line in enumerate(f):
-            
-            if len(ids) >= limit:
-                break
+    try:
+        client.delete_collection(name=collection_name)
+        print(f"Existing collection '{collection_name}' deleted.")
+    except:
+        pass
 
-            raw_item = json.loads(line)
+    collection = client.create_collection(name=collection_name)
 
-            if not raw_item.get('title'):
-                continue
+    # Reading Parquet
+    print(f"Reading data from {PARQUET_PATH}...")
+    df = pl.read_parquet(PARQUET_PATH).head(15000)
+    total_lines = df.height
 
-            clean_item = preprocess(raw_item)
-            current_id = clean_item.get('asin')
+    print('Initializing batch indexing...')
+    # Loop for processing batches
+    for i in tqdm(range(0, total_lines, batch_size), desc="Indexing batches"):
+        
+        print(f"Processing batch {i//batch_size + 1}...")
 
-            if current_id and current_id not in seen_asins:
-                documents.append(clean_item['content'])
-                ids.append(current_id)
-                metadatas.append({"title": clean_item['title']})
-                seen_asins.add(current_id)
+        # Dataframe slice
+        batch_df = df.slice(i, batch_size)
+        lines = batch_df.to_dicts()
 
-    # Generate the 384 embeddings for documents and save it on disk
-    if ids:
+        texts_to_ai = []
+        ids = []
+        metadata = []
+
+        for line in lines:
+
+            clean_items = preprocess(line)
+
+            if clean_items.get('content') and clean_items.get('asin'):
+                
+                texts_to_ai.append(clean_items['content'])
+                ids.append(clean_items['asin'])
+                metadata.append({ "title": clean_items['title']})
+
+        # If batch ended up empty (all produts were invalid)
+        if not texts_to_ai:
+            continue
+
+        # Where AI process all texts and generates the embeddings
+        print(f"Generating embeddings for batch {i//batch_size + 1}...")
+        embeddings = model.encode(texts_to_ai)
+
+        print(f"Upserting batch {i//batch_size + 1} to ChromaDB...")
         collection.upsert(
-            documents=documents,
-            ids=ids,
-            metadatas=metadatas
+            ids = ids,
+            embeddings = embeddings.tolist(),
+            metadatas = metadata
         )
-        print(f"Indexed {collection.count()} items")
-    else:
-        print("No valid items found to index.")
+
 
 if __name__ == '__main__':
-    run_indexing(limit=500)
+    run_batch_indexing(batch_size = 256)
