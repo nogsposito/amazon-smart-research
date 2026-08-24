@@ -6,11 +6,17 @@ API_URL = "http://127.0.0.1:8000/api/v1/search"
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
+
+# ----------------------------
+# Streamlit configuration
+# ----------------------------
+
 st.set_page_config(
     page_title="AI Vinyl & CD Search",
     page_icon="🎵",
     layout="wide"
 )
+
 
 # ----------------------------
 # Helper functions
@@ -38,8 +44,9 @@ st.write(
 
 st.divider()
 
+
 # ----------------------------
-# Search
+# Search bar
 # ----------------------------
 
 col1, col2 = st.columns([5, 1])
@@ -66,9 +73,13 @@ with col2:
 if search_clicked:
 
     if not query.strip():
-        st.warning("Please enter a search query before clicking Search.")
+
+        st.warning(
+            "Please enter a search query before clicking Search."
+        )
 
     else:
+
         with st.spinner("Searching for the best matches..."):
 
             try:
@@ -95,7 +106,7 @@ if search_clicked:
                             f"Found {len(results)} matching albums!"
                         )
 
-                        for i, record in enumerate(results):
+                        for record in results:
 
                             asin = record.get("ASIN")
                             title = record.get(
@@ -109,59 +120,47 @@ if search_clicked:
 
                             with st.container(border=True):
 
-                                # Album cover + information
                                 cover_col, info_col = st.columns(
                                     [1, 4],
                                     vertical_alignment="center"
                                 )
 
+                                # Album cover
                                 with cover_col:
 
-                                    try:
+                                    if asin:
                                         st.image(
                                             get_cover_url(asin),
                                             width=180
                                         )
 
-                                    except Exception:
-                                        st.markdown(
-                                            """
-                                            <div style="
-                                                width: 180px;
-                                                height: 180px;
-                                                display: flex;
-                                                align-items: center;
-                                                justify-content: center;
-                                                background: #222;
-                                                border-radius: 10px;
-                                                font-size: 60px;
-                                            ">
-                                                🎵
-                                            </div>
-                                            """,
-                                            unsafe_allow_html=True
-                                        )
+                                    else:
+                                        st.markdown("### 🎵")
 
+                                # Album information
                                 with info_col:
 
                                     st.subheader(title)
 
-                                    st.caption(
-                                        f"Amazon ASIN: `{asin}`"
-                                    )
+                                    if asin:
+                                        st.caption(
+                                            f"Amazon ASIN: `{asin}`"
+                                        )
 
-                                    col_button, col_metric = st.columns(
+                                    button_col, metric_col = st.columns(
                                         [2, 1]
                                     )
 
-                                    with col_button:
-                                        st.link_button(
-                                            "🛒 View on Amazon",
-                                            f"https://www.amazon.com/dp/{asin}",
-                                            use_container_width=True
-                                        )
+                                    with button_col:
 
-                                    with col_metric:
+                                        if asin:
+                                            st.link_button(
+                                                "🛒 View on Amazon",
+                                                f"https://www.amazon.com/dp/{asin}",
+                                                use_container_width=True
+                                            )
+
+                                    with metric_col:
 
                                         if distance is not None:
                                             st.metric(
@@ -179,6 +178,7 @@ if search_clicked:
                                         )
 
                                         if distance is not None:
+
                                             st.write(
                                                 f"Vector distance: "
                                                 f"`{float(distance):.6f}`"
@@ -194,20 +194,37 @@ if search_clicked:
                 else:
 
                     st.error(
-                        f"API Error: {response.text}"
+                        f"Backend API returned an error: "
+                        f"{response.status_code}"
                     )
+
+                    with st.expander("Show error details"):
+                        st.code(response.text)
 
             except requests.exceptions.ConnectionError:
 
                 st.error(
-                    "Failed to connect to the backend API. "
-                    "Make sure the FastAPI server or Docker container "
-                    "is running."
+                    "Unable to connect to the FastAPI backend."
+                )
+
+                st.info(
+                    "Make sure the backend server is running on "
+                    "`http://127.0.0.1:8000`."
+                )
+
+                st.code(
+                    "uvicorn src.main:app --reload",
+                    language="bash"
                 )
 
             except requests.exceptions.Timeout:
 
                 st.error(
-                    "The request took too long. "
-                    "Please try again."
+                    "The request to the backend took too long."
+                )
+
+            except requests.exceptions.RequestException as e:
+
+                st.error(
+                    f"An error occurred while contacting the API: {e}"
                 )
