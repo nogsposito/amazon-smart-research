@@ -5,6 +5,8 @@
 ## Project Description
 This project consists of developing an end-to-end semantic search engine designed to process and index Amazon's massive catalog (approximately 700,000 products in the CDs & Vinyl category). Unlike traditional exact-match keyword searches, this system uses Artificial Intelligence and Natural Language Processing (NLP/LLM) to understand the context, emotions, and abstract concepts within user queries (e.g., "melancholic jazz for a rainy day"), delivering highly accurate results.
 
+**[🚀 Live Demo](https://amazon-smart-research.streamlit.app/)**
+
 ## Business Impact
 In the current E-commerce market, search failure is one of the leading causes of Search Abandonment. If a customer searches for a concept and the platform doesn't understand it, the sale is lost. 
 * **Customer Retention:** The developed engine eliminates the barrier of literal search, interpreting the consumer's real intent.
