@@ -79,12 +79,10 @@ if search_clicked:
 
             try:
 
-                # Search directly using your project's
-                # search pipeline
-                results = search_disks(
-                    query=query,
-                    limit=5
-                )
+                results = search_disks(query)
+
+                # Show only the first 5 results
+                results = results[:5]
 
                 if results:
 
