@@ -19,10 +19,8 @@ st.set_page_config(
 
 def get_cover_url(asin):
     return (
-        "https://ws-na.amazon-adsystem.com/widgets/"
-        f"q?_encoding=UTF8&Format=_SL500_&ASIN={asin}"
-        "&MarketPlace=US&ID=AsinImage&WS=1"
-        "&ServiceVersion=20070822"
+        f"https://images-na.ssl-images-amazon.com/"
+        f"images/P/{asin}.01.LZZZZZZZ.jpg"
     )
 
 
