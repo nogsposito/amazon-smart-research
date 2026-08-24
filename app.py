@@ -1,15 +1,10 @@
 import streamlit as st
 import os
-import requests
-
-API_URL = "http://127.0.0.1:8000/api/v1/search"
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
+from src.pipeline.search import search_disks
 
-# ----------------------------
-# Streamlit configuration
-# ----------------------------
 
 st.set_page_config(
     page_title="AI Vinyl & CD Search",
@@ -38,7 +33,7 @@ def get_cover_url(asin):
 st.title("🎵 AI Vinyl & CD Search")
 
 st.write(
-    "Search Amazon's music catalog using **semantic AI search**. "
+    "Search Amazon's music catalog using semantic AI search. "
     "Describe what you're looking for naturally."
 )
 
@@ -46,7 +41,7 @@ st.divider()
 
 
 # ----------------------------
-# Search bar
+# Search
 # ----------------------------
 
 col1, col2 = st.columns([5, 1])
@@ -84,147 +79,111 @@ if search_clicked:
 
             try:
 
-                payload = {
-                    "query": query,
-                    "limit": 5
-                }
-
-                response = requests.post(
-                    API_URL,
-                    json=payload,
-                    timeout=30
+                # Search directly using your project's
+                # search pipeline
+                results = search_disks(
+                    query=query,
+                    limit=5
                 )
 
-                if response.status_code == 200:
+                if results:
 
-                    data = response.json()
-                    results = data.get("results", [])
+                    st.success(
+                        f"Found {len(results)} matching albums!"
+                    )
 
-                    if results:
+                    for record in results:
 
-                        st.success(
-                            f"Found {len(results)} matching albums!"
+                        # Depending on how search_disks
+                        # returns data, adjust these keys if necessary
+                        asin = record.get("ASIN")
+                        title = record.get(
+                            "Title",
+                            "Unknown Title"
                         )
 
-                        for record in results:
+                        distance = record.get("Distance")
 
-                            asin = record.get("ASIN")
-                            title = record.get(
-                                "Title",
-                                "Unknown Title"
-                            )
-                            distance = record.get(
-                                "Distance",
-                                None
+                        with st.container(border=True):
+
+                            cover_col, info_col = st.columns(
+                                [1, 4],
+                                vertical_alignment="center"
                             )
 
-                            with st.container(border=True):
+                            # Album cover
+                            with cover_col:
 
-                                cover_col, info_col = st.columns(
-                                    [1, 4],
-                                    vertical_alignment="center"
-                                )
+                                if asin:
 
-                                # Album cover
-                                with cover_col:
-
-                                    if asin:
-                                        st.image(
-                                            get_cover_url(asin),
-                                            width=180
-                                        )
-
-                                    else:
-                                        st.markdown("### 🎵")
-
-                                # Album information
-                                with info_col:
-
-                                    st.subheader(title)
-
-                                    if asin:
-                                        st.caption(
-                                            f"Amazon ASIN: `{asin}`"
-                                        )
-
-                                    button_col, metric_col = st.columns(
-                                        [2, 1]
+                                    st.image(
+                                        get_cover_url(asin),
+                                        width=180
                                     )
 
-                                    with button_col:
+                                else:
 
-                                        if asin:
-                                            st.link_button(
-                                                "🛒 View on Amazon",
-                                                f"https://www.amazon.com/dp/{asin}",
-                                                use_container_width=True
-                                            )
+                                    st.markdown("# 🎵")
 
-                                    with metric_col:
+                            # Album information
+                            with info_col:
 
-                                        if distance is not None:
-                                            st.metric(
-                                                "AI Distance",
-                                                f"{float(distance):.3f}"
-                                            )
+                                st.subheader(title)
 
-                                    with st.expander(
-                                        "🤖 AI Search Details"
-                                    ):
+                                if asin:
 
-                                        st.write(
-                                            "This result was retrieved "
-                                            "using semantic vector search."
+                                    st.caption(
+                                        f"Amazon ASIN: `{asin}`"
+                                    )
+
+                                button_col, metric_col = st.columns(
+                                    [2, 1]
+                                )
+
+                                with button_col:
+
+                                    if asin:
+
+                                        st.link_button(
+                                            "🛒 View on Amazon",
+                                            f"https://www.amazon.com/dp/{asin}",
+                                            use_container_width=True
                                         )
 
-                                        if distance is not None:
+                                with metric_col:
 
-                                            st.write(
-                                                f"Vector distance: "
-                                                f"`{float(distance):.6f}`"
-                                            )
+                                    if distance is not None:
 
-                    else:
+                                        st.metric(
+                                            "AI Distance",
+                                            f"{float(distance):.3f}"
+                                        )
 
-                        st.info(
-                            "No results found. "
-                            "Try describing the music differently."
-                        )
+                                with st.expander(
+                                    "🤖 Technical AI Details"
+                                ):
+
+                                    st.write(
+                                        "Results retrieved using "
+                                        "semantic vector search."
+                                    )
+
+                                    if distance is not None:
+
+                                        st.write(
+                                            f"Vector distance: "
+                                            f"`{float(distance):.6f}`"
+                                        )
 
                 else:
 
-                    st.error(
-                        f"Backend API returned an error: "
-                        f"{response.status_code}"
+                    st.warning(
+                        "No results found. "
+                        "Please try a different query."
                     )
 
-                    with st.expander("Show error details"):
-                        st.code(response.text)
-
-            except requests.exceptions.ConnectionError:
+            except Exception as e:
 
                 st.error(
-                    "Unable to connect to the FastAPI backend."
-                )
-
-                st.info(
-                    "Make sure the backend server is running on "
-                    "`http://127.0.0.1:8000`."
-                )
-
-                st.code(
-                    "uvicorn src.main:app --reload",
-                    language="bash"
-                )
-
-            except requests.exceptions.Timeout:
-
-                st.error(
-                    "The request to the backend took too long."
-                )
-
-            except requests.exceptions.RequestException as e:
-
-                st.error(
-                    f"An error occurred while contacting the API: {e}"
+                    f"An error occurred while searching: {e}"
                 )
